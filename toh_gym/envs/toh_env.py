@@ -8,11 +8,7 @@ from contextlib import closing
 
 import numpy as np
 from six import StringIO, b
-from matplotlib import pyplot as plt
-from gym import utils
 from gym.envs.toy_text import discrete
-import time
-import pandas as pd
 import random
 from itertools import permutations as perm
 
@@ -61,7 +57,10 @@ class TohEnv(discrete.DiscreteEnv):
                 break
         return states
 
-    def __init__(self, poles=3, rings=3, noise=0):
+    def randomValid(self, state):
+        pass
+
+    def __init__(self, poles=3, rings=3, noise=0, stepReward=0, invalidReward=0):
 
         self.initial_state = tuple([tuple(range(rings, 0, -1))] + [()] * (poles - 1))
         assert noise < 1.0, "noise must be between 0 and 1"
@@ -87,6 +86,15 @@ class TohEnv(discrete.DiscreteEnv):
                   for s in range(len(self.all_states))}
 
         # For stochastic environment
+        goalR = 1
+        if stepReward:
+            stepR = stepReward
+        else:
+            stepR = 0
+        if invalidReward:
+            invalidR = invalidReward
+        else:
+            invalidR = 0
         self.noise = noise
         for s in range(len(self.all_states)):
             for a in range(len(self.action_list)):
@@ -98,31 +106,33 @@ class TohEnv(discrete.DiscreteEnv):
                         done = False
                         new_state = self.apply_action(
                             self.state_mapping[s], self.action_list[a])
-                        rew = 0
+                        rew = stepR
                         if new_state == None:
                             new_state = self.state_mapping[s]
                         if self.is_state_valid(new_state) == False:
                             new_state = self.state_mapping[s]
+                            rew = invalidR
                             done = True
                         if new_state == self.goal_state:
-                            rew = 100
+                            rew = goalR
                             done = True
                         li.append(
                             (1, self.inverse_mapping[new_state], rew, done))
                     else:
-                        for b in [(a, 1-noise), (random.choice(range(6)), noise)]:
+                        for b in [(a, 1-noise), (np.random.choice(range(6)), noise)]:
                             a, prob = b[0], b[1]
                             done = False
                             new_state = self.apply_action(
                                 self.state_mapping[s], self.action_list[a])
-                            rew = 0
+                            rew = stepR
                             if new_state == None:
                                 new_state = self.state_mapping[s]
                             if self.is_state_valid(new_state) == False:
                                 new_state = self.state_mapping[s]
+                                rew = invalidR
                                 done = True
                             if new_state == self.goal_state:
-                                rew = 100
+                                rew = goalR
                                 done = True
                             li.append(
                                 (prob, self.inverse_mapping[new_state], rew, done))
